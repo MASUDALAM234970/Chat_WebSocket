@@ -1,0 +1,378 @@
+{
+  "info": {
+    "name": "RealTime Chat API – Django Channels",
+    "_postman_id": "realtime-chat-api-v1",
+    "description": "Complete REST API collection for the Real-Time Chat Application built with Django Channels & WebSocket.\n\n## Setup\n1. Import this collection into Postman\n2. Set `base_url` variable to `http://127.0.0.1:8000`\n3. Register → Login → copy `access` token → set as `access_token` variable\n4. All authenticated requests use Bearer token automatically via Collection Auth\n\n## WebSocket Testing\nUse Postman's WebSocket request feature:\n- URL: `ws://127.0.0.1:8000/ws/chat/{{room_slug}}/?token={{access_token}}`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" },
+    { "key": "room_slug", "value": "" },
+    { "key": "message_id", "value": "" },
+    { "key": "user_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has user object', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.user).to.have.property('id');",
+                  "  pm.collectionVariables.set('user_id', body.user.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"alice\",\n  \"email\": \"alice@example.com\",\n  \"password\": \"StrongPass123!\",\n  \"password_confirm\": \"StrongPass123!\",\n  \"bio\": \"Hey there! I love chatting.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/register/", "host": ["{{base_url}}"], "path": ["api","v1","auth","register",""] }
+          }
+        },
+        {
+          "name": "Login (Get JWT Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.access) {",
+                  "  pm.collectionVariables.set('access_token', body.access);",
+                  "  pm.collectionVariables.set('refresh_token', body.refresh);",
+                  "  console.log('✅ Tokens saved to collection variables');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"StrongPass123!\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/login/", "host": ["{{base_url}}"], "path": ["api","v1","auth","login",""] }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.access) pm.collectionVariables.set('access_token', body.access);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/token/refresh/", "host": ["{{base_url}}"], "path": ["api","v1","auth","token","refresh",""] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/logout/", "host": ["{{base_url}}"], "path": ["api","v1","auth","logout",""] }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"old_password\": \"StrongPass123!\",\n  \"new_password\": \"NewPass456!\",\n  \"confirm_password\": \"NewPass456!\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/change-password/", "host": ["{{base_url}}"], "path": ["api","v1","auth","change-password",""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Users",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has user fields', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('username');",
+                  "  pm.expect(body).to.have.property('email');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/auth/profile/", "host": ["{{base_url}}"], "path": ["api","v1","auth","profile",""] }
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"alice_updated\",\n  \"bio\": \"Updated bio text here.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/profile/", "host": ["{{base_url}}"], "path": ["api","v1","auth","profile",""] }
+          }
+        },
+        {
+          "name": "List All Users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/auth/users/", "host": ["{{base_url}}"], "path": ["api","v1","auth","users",""] }
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/auth/users/{{user_id}}/", "host": ["{{base_url}}"], "path": ["api","v1","auth","users","{{user_id}}",""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏠 Rooms",
+      "item": [
+        {
+          "name": "List My Rooms",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/chat/rooms/", "host": ["{{base_url}}"], "path": ["api","v1","chat","rooms",""] }
+          }
+        },
+        {
+          "name": "Create Group Room",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body.slug) pm.collectionVariables.set('room_slug', body.slug);",
+                  "console.log('Room slug saved:', body.slug);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"General Discussion\",\n  \"description\": \"A room for general team chat\",\n  \"room_type\": \"group\",\n  \"is_private\": false,\n  \"member_ids\": []\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/chat/rooms/", "host": ["{{base_url}}"], "path": ["api","v1","chat","rooms",""] }
+          }
+        },
+        {
+          "name": "Get Room Details",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/chat/rooms/{{room_slug}}/", "host": ["{{base_url}}"], "path": ["api","v1","chat","rooms","{{room_slug}}",""] }
+          }
+        },
+        {
+          "name": "Update Room",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Room Name\",\n  \"description\": \"New description\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/chat/rooms/{{room_slug}}/", "host": ["{{base_url}}"], "path": ["api","v1","chat","rooms","{{room_slug}}",""] }
+          }
+        },
+        {
+          "name": "Delete Room",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/v1/chat/rooms/{{room_slug}}/", "host": ["{{base_url}}"], "path": ["api","v1","chat","rooms","{{room_slug}}",""] }
+          }
+        },
+        {
+          "name": "Create / Get Direct Message Room",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.slug) pm.collectionVariables.set('room_slug', body.slug);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 2\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/chat/rooms/direct/", "host": ["{{base_url}}"], "path": ["api","v1","chat","rooms","direct",""] }
+          }
+        },
+        {
+          "name": "List Room Members",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/chat/rooms/{{room_slug}}/members/", "host": ["{{base_url}}"], "path": ["api","v1","chat","rooms","{{room_slug}}","members",""] }
+          }
+        },
+        {
+          "name": "Add Member to Room",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 2\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/chat/rooms/{{room_slug}}/members/add/", "host": ["{{base_url}}"], "path": ["api","v1","chat","rooms","{{room_slug}}","members","add",""] }
+          }
+        },
+        {
+          "name": "Leave Room",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/v1/chat/rooms/{{room_slug}}/leave/", "host": ["{{base_url}}"], "path": ["api","v1","chat","rooms","{{room_slug}}","leave",""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💬 Messages",
+      "item": [
+        {
+          "name": "Get Message History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/chat/rooms/{{room_slug}}/messages/?page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api","v1","chat","rooms","{{room_slug}}","messages",""],
+              "query": [{ "key": "page", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Send Message (REST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body.id) pm.collectionVariables.set('message_id', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"room\": 1,\n  \"content\": \"Hello from Postman REST!\",\n  \"message_type\": \"text\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/chat/messages/", "host": ["{{base_url}}"], "path": ["api","v1","chat","messages",""] }
+          }
+        },
+        {
+          "name": "Edit Message",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"This message was edited.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/chat/messages/{{message_id}}/", "host": ["{{base_url}}"], "path": ["api","v1","chat","messages","{{message_id}}",""] }
+          }
+        },
+        {
+          "name": "Delete Message",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/api/v1/chat/messages/{{message_id}}/", "host": ["{{base_url}}"], "path": ["api","v1","chat","messages","{{message_id}}",""] }
+          }
+        },
+        {
+          "name": "Mark Message as Read",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/v1/chat/messages/{{message_id}}/read/", "host": ["{{base_url}}"], "path": ["api","v1","chat","messages","{{message_id}}","read",""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔌 WebSocket",
+      "item": [
+        {
+          "name": "WebSocket – Connect & Chat (README)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/", "host": ["{{base_url}}"], "path": [""] },
+            "description": "## WebSocket Testing in Postman\n\n**Use Postman's built-in WebSocket client** (New → WebSocket):\n\n### Connection URL\n```\nws://127.0.0.1:8000/ws/chat/{{room_slug}}/?token={{access_token}}\n```\n\n---\n\n### Send: Chat Message\n```json\n{\n  \"type\": \"chat_message\",\n  \"message\": \"Hello everyone!\"\n}\n```\n\n### Send: Reply to Message\n```json\n{\n  \"type\": \"chat_message\",\n  \"message\": \"Replying to that!\",\n  \"parent_id\": 5\n}\n```\n\n### Send: Typing Start\n```json\n{ \"type\": \"typing_start\" }\n```\n\n### Send: Typing Stop\n```json\n{ \"type\": \"typing_stop\" }\n```\n\n### Send: Mark Message Read\n```json\n{\n  \"type\": \"mark_read\",\n  \"message_id\": 10\n}\n```\n\n### Send: Ping\n```json\n{ \"type\": \"ping\" }\n```\n\n---\n\n### Receive Event Types\n| type | description |\n|------|-------------|\n| `message_history` | Last 50 messages on connect |\n| `chat_message` | New message from any user |\n| `typing_indicator` | Typing status |\n| `user_presence` | Online/offline status |\n| `read_receipt` | Message read confirmation |\n| `message_edited` | Message content updated |\n| `message_deleted` | Message soft-deleted |\n| `error` | Server-side error |\n| `pong` | Response to ping |"
+          }
+        }
+      ]
+    }
+  ]
+}
